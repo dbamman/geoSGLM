@@ -6,4 +6,4 @@ CLASSES=$here/bin
 CLASSES=$CLASSES:$(echo $here/lib/*.jar | tr ' ' :)
 CLASSES=$CLASSES:$here/geoSGLM.jar
 
-java -XX:ParallelGCThreads=2 -Xmx3000m -ea -classpath $CLASSES $*
+java -XX:ParallelGCThreads=2 -Xmx8000m -ea -classpath $CLASSES $*
