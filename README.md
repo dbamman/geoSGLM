@@ -30,12 +30,7 @@ The feature file lists the valid metadata values to learn embeddings for (e.g., 
 
 * OUTFILE=data/out.embeddings
 
-The outfile contains the learned word embeddings.  The output format is space-separated as follows:
-
-|facet|term|K-dimensional word representation|
-|---|---|---|
-
-Where "facet" denotes either the base representation (MAIN) or the state-specific deviation from that base representation (e.g., "CA" for california).  ***To get the word representation for the word "city" in California, add together the vectors for city/MAIN and city/CA.***
+The outfile contains the learned word embeddings.  The output format is space-separated (facet, term, K-dimensional word representation). "Facet" denotes either the base representation (MAIN) or the state-specific deviation from that base representation (e.g., "CA" for california).  ***To get the word representation for the word "city" in California, add together the vectors for city/MAIN and city/CA.***
 
 
 * MAXVOCAB=100000
