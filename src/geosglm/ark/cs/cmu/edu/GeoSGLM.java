@@ -90,11 +90,12 @@ public class GeoSGLM {
 					try {
 
 						String[] cols = str1.trim().split("\t");
-						String location = cols[1];
-						String message = cols[2];
+						String facet = cols[1];
+						String intersection = cols[2];
+						String message = cols[3];
 						String[] words = message.toLowerCase().split(" ");
 
-						HashSet<Integer> activeFeatures = getFeatures(location);
+						HashSet<Integer> activeFeatures = getFeatures(facet, intersection);
 						ArrayList<Word> newparts = Lists.newArrayList();
 
 						normalizeWords(words);
@@ -230,7 +231,7 @@ public class GeoSGLM {
 		}
 	}
 
-	static int epochs = 1;
+	static int epochs = 10;
 
 	public static void main(String[] args) {
 
@@ -255,6 +256,9 @@ public class GeoSGLM {
 		// L2 regularization term
 		double L2 = Double.valueOf(args[6]);
 
+		// path to write the context embeddings to
+		String contextsFile = args[7];
+
 		GeoSGLM model = new GeoSGLM();
 
 		model.hiddenLayerSize = hiddenLayerSize;
@@ -269,9 +273,17 @@ public class GeoSGLM {
 			model.learn(inputData);
 			model.totalWordsSeen=i+1*model.totalWordCount;
 			model.update();
+			//if (((i+1) % 5) == 0){
+			//	model.write (outputFile + "." + Integer.toString(i));
+			//	model.contexts_write (contextsFile);
+			//}
+			System.out.println(String.format("Iterations %d completed", i+1));
 		}
-		System.out.println();
+		System.out.println("All iterations completed");
 		model.write(outputFile);
+		model.contexts_write (contextsFile);
+		System.out.println(String.format("Target embeddings written in  %s", outputFile));
+		System.out.println(String.format("Context embeddings written in  %s", contextsFile));
 
 	}
 
@@ -313,11 +325,11 @@ public class GeoSGLM {
 	int numFeatures;
 
 	// number of threads
-	int numThreads = 2;
+	int numThreads = 32;
 	// H x V hidden->output layer weights
 	float[][] outputWeights;
 
-	int regularizeEveryNLines = 10000;
+	int regularizeEveryNLines = 1000;
 
 	HashMap<Integer, String> reverseFeatureMap;
 
@@ -465,20 +477,27 @@ public class GeoSGLM {
 	}
 
 	/**
-	 * Get the embedding indices for a particular metadata value. All locations
+	 * Get the embedding indices for a particular metadata value. All facets
 	 * touch the base representation (0); also include the index of valid
 	 * states.
 	 * 
-	 * @param location
+	 * @param facet
 	 * @return
 	 */
-	public HashSet<Integer> getFeatures(String location) {
+	public HashSet<Integer> getFeatures(String facet, String intersection) {
 
 		HashSet<Integer> activeFeatures = Sets.newHashSet();
 		activeFeatures.add(0);
 
-		if (featureMap.containsKey(location)) {
-			activeFeatures.add(featureMap.get(location));
+		if (featureMap.containsKey(facet)) {
+			activeFeatures.add(featureMap.get(facet));
+		}
+
+		/* If facet and intersection are the same, 
+		 * then this block does not have any effect.
+		 */
+		if (featureMap.containsKey(facet)) {
+			activeFeatures.add (featureMap.get(intersection));
 		}
 
 		return activeFeatures;
@@ -645,6 +664,7 @@ public class GeoSGLM {
 	 */
 	public void setVocab(String vocabFile, String dataFile) {
 		vocabCounts = Maps.newHashMap();
+		int messageOffset=3;
 
 		try {
 			BufferedReader in1 = new BufferedReader(new InputStreamReader(
@@ -683,7 +703,7 @@ public class GeoSGLM {
 					totalTweets++;
 
 					String[] bigparts = str1.trim().split("\t");
-					String words = bigparts[2];
+					String words = bigparts[messageOffset];
 					String[] parts = words.toLowerCase().split(" ");
 
 					normalizeWords(parts);
@@ -741,7 +761,7 @@ public class GeoSGLM {
 	}
 
 	/**
-	 * Write embeddings to file
+	 * Write target embeddings to file
 	 * 
 	 * @param outputPath
 	 * @param id
@@ -781,4 +801,44 @@ public class GeoSGLM {
 		}
 		writeFlag = false;
 	}
+
+	/**
+	 * Write context embeddings to file
+	 * 
+	 * @param outputPath
+	 * @param id
+	 */
+
+	public void contexts_write(String modelFile) {
+
+		if (writeFlag) {
+			return;
+		}
+		writeFlag = true;
+		BufferedWriter out;
+		try {
+			out = new BufferedWriter(new OutputStreamWriter(
+					new FileOutputStream(modelFile), "UTF-8"));
+
+			out.write(vocabSize + " " + hiddenLayerSize + "\n");
+			for (int i = 0; i < vocabSize; i++) {
+				out.write(vocab[i].word + " ");
+				for (int j = 0; j < hiddenLayerSize; j++) {
+					out.write(String.format("%.6f", outputWeights[j][i])
+							+ " ");
+				}
+				out.write("\n");
+			}
+			out.flush();
+			out.close();
+
+		} catch (Exception e) {
+			if (detailedOutput) {
+				System.out.println("error");
+				e.printStackTrace();
+			}
+		}
+		writeFlag = false;
+	}
+
 }
